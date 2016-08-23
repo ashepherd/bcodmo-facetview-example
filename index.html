@@ -1,0 +1,455 @@
+<html>
+  <head>
+    <!-- https://gist.github.com/ashepherd/129447f1c443a639f2505f9efe25fdb1 -->
+    <script type="text/javascript" src="facetview2/vendor/jquery/1.7.1/jquery-1.7.1.min.js"></script>
+    <link rel="stylesheet" href="facetview2/vendor/bootstrap/css/bootstrap.min.css">
+    <script type="text/javascript" src="facetview2/vendor/bootstrap/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="facetview2/vendor/jquery-ui-1.8.18.custom/jquery-ui-1.8.18.custom.css">
+    <script type="text/javascript" src="facetview2/vendor/jquery-ui-1.8.18.custom/jquery-ui-1.8.18.custom.min.js"></script>
+    <script type="text/javascript" src="facetview2/es.js"></script>
+    <script type="text/javascript" src="facetview2/bootstrap2.facetview.theme.js"></script>
+    <script type="text/javascript" src="facetview2/jquery.facetview2.js"></script>
+    <link rel="stylesheet" href="facetview2/css/facetview.css">
+
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.1/handlebars.min.js"></script>
+
+    <link rel="stylesheet" href="//js.arcgis.com/3.14/esri/css/esri.css">
+    <script src="//js.arcgis.com/3.14/"></script>
+  </head>
+  <body>
+
+    <script id="dataset-template" type="text/x-handlebars-template">
+      <tr>
+        <td>
+
+            <div class="row-left">
+              <strong>Dataset</strong>: {{name}} <div class="dataset-not-mapped">{{mappedDataset boundingBox}}</div>
+              <div class="dataset-info">
+                {{#if dateCollected.start}}
+                  <strong>Dates</strong>: {{getDate dateCollected.start}}{{#if dateCollected.end}} to {{getDate dateCollected.end}}{{/if}}
+                {{/if}}
+                {{#if programs}}
+                  <div>
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Programs</div>: <div style="margin-left: 5px;">{{#list programs.program}}<a href="{{uri}}" target="_blank">{{name}}</a>{{/list}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if projects}}
+                  <div>
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Projects</div>: <div style="margin-left: 5px;">{{#list projects.project}}<a href="{{uri}}" target="_blank">{{name}}</a>{{/list}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if people}}
+                  <div style="padding-top: 10px">
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">People</div>: <div style="margin-left: 5px;">{{#fundingList people.person}}<a href="{{uri}}" target="_blank">{{name}}</a>{{#if roles.role}}
+                          <em style="font-size: smaller">({{#list roles.role}}{{name}}{{/list}} )</em>
+                        {{/if}}{{/fundingList}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if deployments}}
+                  <div style="padding-top: 10px">
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Deployments</div>: <div style="margin-left: 5px;">{{#list deployments.deployment}}<a href="{{uri}}" target="_blank">{{name}}</a>{{/list}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if instruments.instrument}}
+                  <div style="padding-top: 10px">
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Instruments</div>: <div style="margin-left: 5px;">{{#list instruments.instrument}}<a href="{{master.uri}}" target="_blank">{{master.name}}</a>{{/list}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if instruments.type}}
+                  <div>
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Instrument Types</div>: <div style="margin-left: 5px;">{{#list instruments.type}}<a href="{{uri}}" target="_blank">{{name}}</a>{{/list}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                {{#if awards.award}}
+                  <div style="padding-top: 10px">
+                    <div style="display: inline-flex; margin-top: 5px;">
+                      <div style="font-weight: bold">Funding</div>: <div style="margin-left: 5px;">{{#fundingList awards.award}}<a href="{{fundingSource.uri}}" target="_blank">{{fundingSource.name}}</a>: <a href="{{uri}}" target="_blank">{{name}}</a>{{#if programManager.uri}}, <a href="{{programManager.uri}}" target="_blank">{{programManager.name}}</a> <em style="font-size: smaller">Program Manager</em>{{/if}}{{/fundingList}}</div>
+                    </div>
+                  </div>
+                {{/if}}
+                <div style="padding-top: 10px">
+                  <div style="margin: 5px; display: inline">
+                    <a href="{{uri}}" target="_blank"><img src="{{identifier}}" alt="Identifier: {{uri}}"/></a>
+                  </div>
+                  {{#if (isFacetDataset)}}
+                    <div style="margin: 5px; display: inline">
+                      <a href="http://test-prod.bco-dmo.org/testing/facetview-es/dataset.html"><img src="{{facetDataset}}" alt="Look Inside the Dataset"/></a>
+                    </div>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+            <div class="row-right">
+
+            </div>
+
+        </td>
+      </tr>
+    </script>
+    <script type="text/javascript">
+      Handlebars.registerHelper('list', function(items, options) {
+        var out = '<ul style="list-style-type: none; margin: 5px 0px 0px 0px; display: inline;">';
+        for(var i=0, l=items.length; i<l; i++) {
+          var li_class = (i != (items.length-1)) ? "dataset-item dataset-item-last" : "dataset-item";
+          out = out + '<li class="' + li_class + '">' + options.fn(items[i]) + "</li>";
+        }
+        return out + "</ul>";
+      });
+      Handlebars.registerHelper('fundingList', function(items, options) {
+        var out = '<ul style="list-style-type: none; margin: 5px 0px 0px 0px; display: inline;">';
+        for(var i=0, l=items.length; i<l; i++) {
+          out = out + '<li>' + options.fn(items[i]) + "</li>";
+        }
+        return out + "</ul>";
+      });
+      Handlebars.registerHelper('roleList', function(items, options) {
+        var out = '<ul style="list-style-type: none; margin: 5px 0px 0px 0px; display: inline;">';
+        for(var i=0, l=items.length; i<l; i++) {
+          out = out + '<li style="display: inline">' + options.fn(items[i]) + "</li>";
+        }
+        return out + "</ul>";
+      });
+      Handlebars.registerHelper('getDate', function(dateString) {
+        var str = '' + dateString;
+        return str.substring(0, 4) + '-' + str.substring(4,6) + '-' + str.substring(6,8);
+      });
+      Handlebars.registerHelper('identifier', function() {
+        return "https://img.shields.io/badge/identifier-" + encodeURIComponent(this.uri.replace(/-/g, '--')) + "-blue.svg?maxAge=2592000";
+      });
+      Handlebars.registerHelper('isFacetDataset', function() {
+        return true; //this.localId == "529599";
+      });
+      Handlebars.registerHelper('facetDataset', function() {
+        return "https://img.shields.io/badge/look--inside-" + encodeURIComponent(this.name.replace(/-/g, '--')) + "-orange.svg?maxAge=2592000";
+      });
+      Handlebars.registerHelper('mappedDataset', function() {
+
+          if (!this.boundingBox) {
+            return " *not mapped";
+          }
+      });
+
+      var source = $("#dataset-template").html();
+      var template = Handlebars.compile(source);
+    </script>
+
+    <script type="text/javascript">
+      function renderResultRecord(options, record) {
+        return template(record).trim();
+      }
+
+      // https://www.elastic.co/guide/en/elasticsearch/reference/1.5/search-facets-terms-facet.html
+      jQuery(document).ready(function($) {
+        $('.facet-view-simple').facetview({
+          search_url: 'http://test-prod.bco-dmo.org/elasticsearch/facetview/dataset/_search',
+          page_size: 100,
+          sort: [{"_score" : {"order" : "desc"}}],
+          search_sortby: [{'display':'Dataset','field':'name'}],
+          default_freetext_fuzzify: "*",
+          default_facet_operator: "AND",
+          default_facet_order: "count",
+          default_facet_size: 20,
+          facets: [
+             {'field': 'programs.program.name.exact', 'display': 'Program', 'order': 'term', size: 50},
+             {'field': 'projects.project.name.exact', 'display': 'Project', 'order': 'term'},
+             {'field': 'dateCollected.start', 'display': 'Collection Year Start', "type": "date_histogram", 'size': 3000,
+               'value_function': function(display_value) {
+                  var n = new Number(display_value);
+                  var d = new Date(n);
+                  return d.getFullYear() + 1;
+               }
+             },
+             {'field': 'dateCollected.end', 'display': 'Collection Year End', "type": "date_histogram", 'size': 3000,
+               'value_function': function(display_value) {
+                  var n = new Number(display_value);
+                  var d = new Date(display_value);
+                  return d.getFullYear() + 1;
+               }
+             },
+             {'field': 'isCruise', 'display': 'Cruise Datasets',
+               'value_function': function(display_value) {
+                  return 'F' == display_value ? 'No' : 'Yes';
+               }
+             },
+             {'field': 'deployments.deployment.name.exact', 'display': 'Deployment'},
+             {'field': 'deployments.deployment.platform.name.exact', 'display': 'Platform'},
+             {'field': 'people.person.name.exact', 'display': 'People', 'order': 'count'},
+             {'field': 'people.person.roles.role.name.exact', 'display': 'Role', size: 50},
+             {'field': 'instruments.instrument.master.name.exact', 'display': 'Instrument'},
+             {'field': 'instruments.type.name.exact', 'display': 'Instrument Type'},
+             {'field': 'parameters.parameter.master.name.exact', 'display': 'Parameter', 'order': 'term'},
+             {'field': 'parameters.type.name.exact', 'display': 'Parameter Type'},
+             {'field': 'awards.award.fundingSource.name.exact', 'display': 'Funding Source', size: 100},
+             {'field': 'awards.award.programManager.name.exact', 'display': 'Program Manager', size: 100},
+             {'field': 'awards.award.name.exact', 'display': 'Award', 'order': 'term'},
+             {'field': 'people.person.roles.role.affiliation.name.exact', 'display': 'Organization', 'order': 'term'},
+          ],
+          pre_search_callback : function(options, context) {
+
+          },
+          post_init_callback: function(options, context) {
+              // Render the map view using Leaflet
+              $(".facetview_searching")
+                  .after("<div class='facetview_map'><div id=\"map\"></div></div>");
+
+              /*
+              // add the 'dco publication' checkbox to the UI
+              $("#facetview_filters")
+                      .before('<div><strong>Collected Date</strong>: <span id="collected-date-range"></span><div id="slider-range"></div></div>');
+
+              var month_max = (2017-1961);
+              $("#collected-date-range").html( "1961 to 2016");
+              $("#slider-range").slider({
+                range: true,
+                min: 1,
+                max: month_max,
+                step: 1,
+                values: [ 1, month_max ],
+                slide: function( event, ui ) {
+                  var min = Math.floor(ui.values[0]) + 1961;
+                  var max = Math.floor(ui.values[1]) + 1961;
+                  $("#collected-date-range").html( min + " to " + max );
+                },
+                change: function( event, ui ) {
+                  var min = Math.floor(ui.values[0]) + 1961;
+                  var max = Math.floor(ui.values[1]) + 1961;
+
+                  var field = $(this).attr("data-field");
+                  var facet = selectFacet(options, field);
+                  var value = {};
+                  if (from) { value["from"] = from }
+                  if (to) { value["to"] = to }
+                  selectFilter(field, value);
+                  options.behaviour_set_selected_filters(options, obj);
+
+                  // reset the result set to the beginning and search again
+                  options.from = 0;
+                  doSearch();
+                }
+              });
+              */
+          },
+          post_render_callback: function(options, context) {
+
+            $("#map").children().remove();
+
+            var map;
+
+            require([
+                "esri/map",
+                "esri/layers/FeatureLayer",
+                "esri/dijit/PopupTemplate",
+                "esri/geometry/Point",
+                "esri/graphic",
+                "dojo/on",
+                "dojo/_base/array",
+                "dojo/domReady!"
+            ], function(Map, FeatureLayer, PopupTemplate, Point, Graphic, on, array) {
+
+                map = new Map("map", {
+                    basemap: "oceans",
+                    center: [0, 0],
+                    zoom: 2
+                });
+
+                // Hide the popup if its outside the map's extent
+                map.on("mouse-drag", function(evt) {
+                    if (map.infoWindow.isShowing) {
+                        var loc = map.infoWindow.getSelectedFeature().geometry;
+                        if (!map.extent.contains(loc)) {
+                            map.infoWindow.hide();
+                        }
+                    }
+                });
+
+                var featureCollection = {
+                    "layerDefinition": null,
+                    "featureSet": {
+                        "features": [],
+                        "geometryType": "esriGeometryPoint"
+                    }
+                };
+                featureCollection.layerDefinition = {
+                    "geometryType": "esriGeometryPoint",
+                    "fieldStudyectIdField": "fieldStudyectID",
+                    "drawingInfo": {
+                        "renderer": {
+                            "type": "simple",
+                            "symbol": {
+                              "type": "esriPMS",
+                              "url" : "http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|FE7569",
+                              "imageData" : null,
+                              "contentType" : "image/png",
+                              "color" : null,
+                              "width" : 21,
+                              "height" : 34,
+                              "angle" : 0,
+                              "xoffset" : 0,
+                              "yoffset" : 0
+                            }
+                            /*
+                            "symbol": {
+                                "type": "esriSMS",
+                                "style": "esriSMSDiamond",
+                                "size": 15,
+                                "color": [255, 0, 0, 255],
+                                "outline": {
+                                    "color": [255, 255, 255, 255],
+                                    "width": 1,
+                                    "type": "esriSLS",
+                                    "style": "esriSLSSolid"
+                                }
+                            }
+                            */
+                        }
+                    },
+                    "fields": [{
+                        "name": "fieldStudyectID",
+                        "alias": "fieldStudyectID",
+                        "type": "esriFieldTypeOID"
+                    }, {
+                        "name": "title",
+                        "alias": "Title",
+                        "type": "esriFieldTypeString"
+                    }, {
+                        "name": "description",
+                        "alias": "Description",
+                        "type": "esriFieldTypeString"
+                    }]
+                };
+
+                // Define a popup template
+                var popupTemplate = new PopupTemplate({
+                    title: "{title}",
+                    description: "{description}"
+                });
+
+                // Create a feature layer based on the feature collection
+                var featureLayer = new FeatureLayer(featureCollection, {
+                    id: 'fieldSitesLayer',
+                    infoTemplate: popupTemplate
+                });
+                // Associate the features with the popup on click
+                featureLayer.on("click", function(evt) {
+                    map.infoWindow.setFeatures([evt.graphic]);
+                });
+
+                map.on("layers-add-result", function(results) {
+                    renderPopups();
+                });
+                map.addLayers([featureLayer]);
+
+                function renderPopups() {
+                  var records = options.data.records;
+                  var features = new Array();
+                  for (var i = 0; i < records.length; i++) {
+                    var dataset = records[i];
+                    if (dataset.boundingBox) {
+                      var popup = $("<div>Dataset: " + dataset.name + "</div>");
+                      var attr = {};
+                      attr["title"] = "<span><a href=\"" + dataset.uri + "\">" + dataset.name + "</a></span>";
+                      attr["description"] = "<span>Description goes here...</span>"; //popup.html();
+
+                      var polygon = new esri.geometry.Polygon();
+                      $.each(dataset.boundingBox.coordinates, function(index, ring){
+                        polygon.addRing(ring);
+                      });
+                      var graphic = new Graphic(polygon.getExtent().getCenter());
+                      graphic.setAttributes(attr);
+                      features.push(graphic);
+
+                    }
+                  }
+                  featureLayer.applyEdits(features, null, null);
+                }
+            });
+          },
+          render_result_record: renderResultRecord,
+          search_button: true,
+          selected_filters_in_facet: true,
+          sharesave_link: true,
+          show_filter_field : true,
+          show_filter_logic: true,
+        });
+      });
+    </script>
+    <style type="text/css">
+      .row-left {
+        display: inline-block;
+        float: left;
+      }
+      .row-right {
+        display: inline-block;
+        float: right;
+      }
+      .dataset-info {
+        font-size: smaller;
+        padding-left: 20px;
+        padding-top: 20px;
+      }
+
+      .dataset-item {
+        display: inline;
+        margin-left: 5px;
+      }
+      .dataset-item-last :after {
+        content: ", ";
+      }
+
+      .facet-view-simple {
+        padding: 25px;
+      }
+
+      .facetview_decrement, .facetview_increment {
+        cursor: pointer;
+      }
+
+      .esriControlsBR {
+        display: none;
+      }
+
+      .dataset-not-mapped {
+        font-size: smaller;
+      }
+
+      #map {
+          width: 100%;
+          height: 600px;
+          margin-bottom: 20px;
+      }
+
+      .esriViewPopup p {
+          margin: 0;
+          font-size: 10px;
+          line-height: 12px;
+          text-indent: 0;
+      }
+
+      .esriViewPopup .hzLine {
+          border: none;
+          margin: 0;
+      }
+
+      .esriViewPopup .header {
+          background-color: white;
+      }
+
+      .esriPopup .title {
+          color: white;
+      }
+    </style>
+    <div class="facet-view-simple"></div>
+  </body>
+</html>
