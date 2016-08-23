@@ -153,12 +153,6 @@
       // https://www.elastic.co/guide/en/elasticsearch/reference/1.5/search-facets-terms-facet.html
       jQuery(document).ready(function($) {
 
-        // Make Facets Sortable.
-        $(".facetview_filters").wrap( '<li class="sortable-facet"></li>' );
-        $(".sortable-facet").wrapAll( '<ul id="sortable"></ul>' );
-        $( "#sortable" ).sortable();
-        $( "#sortable" ).disableSelection();
-
         $('.facet-view-simple').facetview({
           search_url: 'http://test-prod.bco-dmo.org/elasticsearch/facetview/dataset/_search',
           page_size: 100,
@@ -390,6 +384,13 @@
           show_filter_field : true,
           show_filter_logic: true,
         });
+
+        // Make Facets Sortable.
+        $(".facetview_filters").wrap( '<li class="sortable-facet"></li>' );
+        $(".sortable-facet").wrapAll( '<ul id="sortable"></ul>' );
+        $( "#sortable" ).sortable();
+        $( "#sortable" ).disableSelection();
+
       });
     </script>
     <style type="text/css">
